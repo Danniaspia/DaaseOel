@@ -29,9 +29,9 @@ class BeerWidget : AppWidgetProvider() {
 
             v.setTextViewText(R.id.label, "BILLIGSTE DÅSEØL · ${p.radiusKm} KM")
             if (best != null) {
-                v.setTextViewText(R.id.price, Format.perLiter(best))
+                v.setTextViewText(R.id.price, Format.main(best, p.perCan))
                 v.setTextViewText(R.id.title, best.beerText)
-                v.setTextViewText(R.id.sub, "${best.dealer} · ${Format.pack(best)}")
+                v.setTextViewText(R.id.sub, "${best.dealer} · ${Format.pack(best)} · ${Format.other(best, p.perCan)}")
                 v.setTextViewText(R.id.footer, listOf(Format.period(best), footerStatus(p)).filter { it.isNotEmpty() }.joinToString(" · "))
             } else {
                 v.setTextViewText(R.id.price, "–")

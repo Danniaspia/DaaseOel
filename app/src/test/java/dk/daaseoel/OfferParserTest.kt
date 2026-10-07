@@ -92,6 +92,13 @@ class OfferParserTest {
         assertEquals(listOf(a, b), Ranking.rank(listOf(b, a)))
     }
 
+    @Test fun perCanRankingUsesCanPrice() {
+        val big = OfferParser.parse(offer("Grøn Tuborg", "24 x 33 cl", 96.0, pieces = 24)).single()   // 4,00 kr/dåse
+        val small = OfferParser.parse(offer("Royal Export", "18 x 30 cl", 70.2, pieces = 18)).single() // 3,90 kr/dåse, men dyrere pr. liter
+        assertEquals(listOf(small, big), Ranking.rank(listOf(big, small), perCan = true))
+        assertEquals(listOf(big, small), Ranking.rank(listOf(big, small), perCan = false))
+    }
+
     @Test fun linkPointsToOfferInEtilbudsavis() {
         val d = OfferParser.parse(offer("Grøn Tuborg", "18 x 33 cl", 69.0, pieces = 18, slug = "REMA-1000")).single()
         assertEquals("https://etilbudsavis.dk/REMA-1000?publication=Cat1&offer=${d.offerId}", d.link)

@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Grøn flaske-gradient, samme som det store kort i appen. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#F01C1C20" />
+    <gradient
+        android:angle="315"
+        android:endColor="#F20D3D23"
+        android:centerColor="#F2176236"
+        android:startColor="#F22C9455" />
     <corners android:radius="22dp" />
 </shape>

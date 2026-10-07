@@ -60,7 +60,8 @@ data class Deal(
     val runTill: Long,
     val link: String,
 ) {
-    val perLiter get() = price / pieces / (cl / 100.0)
+    val perCan get() = price / pieces
+    val perLiter get() = perCan / (cl / 100.0)
 
     /** Kun de øl, brugeren har valgt – eller null, hvis ingen af dem er med. */
     fun forSelection(selected: Set<String>): Deal? {
@@ -98,11 +99,14 @@ data class Deal(
 }
 
 object Ranking {
-    /** Billigste literpris først; hvert tilbud kun én gang (med sin billigste ramme). */
-    fun rank(deals: List<Deal>): List<Deal> = deals
-        .groupBy { it.offerId }
-        .map { (_, list) -> list.minBy { it.perLiter } }
-        .sortedWith(compareBy<Deal> { it.perLiter }.thenByDescending { it.pieces })
+    /** Billigste først (literpris eller pris pr. dåse); hvert tilbud kun én gang (med sin billigste ramme). */
+    fun rank(deals: List<Deal>, perCan: Boolean = false): List<Deal> {
+        val key: (Deal) -> Double = if (perCan) { d -> d.perCan } else { d -> d.perLiter }
+        return deals
+            .groupBy { it.offerId }
+            .map { (_, list) -> list.minBy(key) }
+            .sortedWith(compareBy<Deal> { key(it) }.thenByDescending { it.pieces })
+    }
 }
 
 /** Gør et rå tilbud fra Tjek/eTilbudsavis om til de rammer dåseøl, det indeholder. */

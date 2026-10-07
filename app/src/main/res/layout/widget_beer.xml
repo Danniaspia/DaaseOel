@@ -16,6 +16,12 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginEnd="6dp"
+            android:src="@drawable/ic_can" />
+
         <TextView
             android:id="@+id/label"
             android:layout_width="0dp"
@@ -41,7 +47,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:maxLines="1"
-        android:textColor="@color/copper"
+        android:textColor="@color/gold"
         android:textSize="30sp"
         android:textStyle="bold" />
 

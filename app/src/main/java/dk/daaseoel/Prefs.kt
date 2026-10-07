@@ -11,6 +11,11 @@ class Prefs(ctx: Context) {
         get() = sp.getInt("radius", 10)
         set(v) = sp.edit().putInt("radius", v).apply()
 
+    /** true = vis og sammenlign pris pr. dåse, false = literpris. */
+    var perCan: Boolean
+        get() = sp.getBoolean("per_can", false)
+        set(v) = sp.edit().putBoolean("per_can", v).apply()
+
     /** De konkrete øl, der tæller (navne fra [Beers.ALL]). */
     var beers: Set<String>
         get() = sp.getStringSet("beers", null)?.toSet() ?: Beers.DEFAULT
@@ -63,9 +68,9 @@ class Prefs(ctx: Context) {
         get() = System.currentTimeMillis() - sp.getLong("refreshing", 0) < 90_000
         set(v) = sp.edit().putLong("refreshing", if (v) System.currentTimeMillis() else 0).commit().let { }
 
-    /** Aktuelle rammer med de valgte øl, billigste literpris først. */
+    /** Aktuelle rammer med de valgte øl, billigste først (pr. dåse eller pr. liter). */
     fun ranked(now: Long = System.currentTimeMillis()): List<Deal> {
         val selected = beers
-        return Ranking.rank(deals.filter { it.runTill == 0L || it.runTill > now }.mapNotNull { it.forSelection(selected) })
+        return Ranking.rank(deals.filter { it.runTill == 0L || it.runTill > now }.mapNotNull { it.forSelection(selected) }, perCan)
     }
 }

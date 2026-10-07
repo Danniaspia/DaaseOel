@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.location.Location
@@ -15,6 +16,8 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
@@ -29,14 +32,16 @@ class MainActivity : Activity() {
         private const val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
         private const val WRAP = LinearLayout.LayoutParams.WRAP_CONTENT
 
-        // Grafit, kort, kobber og varm hvid – samme udtryk som AirTooth.
-        private val CARD = 0xFF1C1C20.toInt()
-        private val TILE = 0xFF2A2A2E.toInt()
-        private val COPPER = 0xFFD08A4E.toInt()
-        private val TEXT = 0xFFF2EFEA.toInt()
-        private val MUTED = 0xFF8A8A90.toInt()
-        private val PILL_ON = 0xFF2A2118.toInt()
-        private val PILL_ON_TEXT = 0xFFE8B48A.toInt()
+        // Grøn Tuborg-toner: flaskegrøn bund, tuborggrøn, guld som øllet og skumhvid tekst.
+        private val CARD = 0xFF10301F.toInt()
+        private val TILE = 0xFF17402A.toInt()
+        private val GREEN = 0xFF2E9E57.toInt()
+        private val GREEN_LIGHT = 0xFF7DDB9F.toInt()
+        private val GOLD = 0xFFF5C64B.toInt()
+        private val TEXT = 0xFFF4F1E6.toInt()
+        private val MUTED = 0xFF93B19E.toInt()
+        private val PILL_ON = 0xFF1E6B3D.toInt()
+        private val HERO = intArrayOf(0xFF2C9455.toInt(), 0xFF176236.toInt(), 0xFF0D3D23.toInt())
 
         private var current: WeakReference<MainActivity>? = null
 
@@ -55,6 +60,8 @@ class MainActivity : Activity() {
     private lateinit var heroSub: TextView
     private lateinit var heroFooter: TextView
     private lateinit var heroLinkText: TextView
+    private lateinit var heroOther: TextView
+    private lateinit var priceRow: LinearLayout
     private var heroLink: String? = null
     private lateinit var radiusText: TextView
     private lateinit var locRow: LinearLayout
@@ -163,10 +170,13 @@ class MainActivity : Activity() {
         val ranked = prefs.ranked()
         val best = ranked.firstOrNull()
 
+        val perCan = prefs.perCan
         heroLabel.text = "BILLIGSTE RAMME DÅSEØL · ${prefs.radiusKm} KM"
         heroLink = best?.link
+        heroOther.visibility = if (best != null) View.VISIBLE else View.GONE
         if (best != null) {
-            heroPrice.text = Format.perLiter(best)
+            heroPrice.text = Format.main(best, perCan)
+            heroOther.text = Format.other(best, perCan)
             heroTitle.text = best.beerText
             heroSub.text = "${best.dealer} · ${Format.pack(best)}"
         } else {
@@ -185,6 +195,8 @@ class MainActivity : Activity() {
             },
         ).joinToString(" · ")
 
+        styleChip(priceRow.getChildAt(0) as TextView, !perCan)
+        styleChip(priceRow.getChildAt(1) as TextView, perCan)
         radiusText.text = "${prefs.radiusKm} km"
 
         styleChip(locRow.getChildAt(0) as TextView, prefs.useGps)
@@ -209,7 +221,7 @@ class MainActivity : Activity() {
         }
 
         list.removeAllViews()
-        ranked.drop(1).take(9).forEachIndexed { i, d -> list.addView(listRow(i + 2, d)) }
+        ranked.drop(1).take(9).forEachIndexed { i, d -> list.addView(listRow(i + 2, d, perCan)) }
         if (ranked.size <= 1) list.addView(text(if (ranked.isEmpty()) "" else "Ingen andre tilbud.", 13f, MUTED))
 
         refreshButton.text = if (prefs.refreshing) "Opdaterer…" else "Opdater nu"
@@ -224,20 +236,54 @@ class MainActivity : Activity() {
             setPadding(dp(18), dp(28), dp(18), dp(32))
         }
 
-        col.addView(text("DåseØl", 28f, TEXT, bold = true))
-        col.addView(text("Det billigste tilbud på øl på dåse i nærheden", 14f, MUTED).apply { setPadding(0, dp(2), 0, dp(16)) })
+        // Overskrift med dåse-mærke.
+        val header = row().apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, dp(18)) }
+        header.addView(ImageView(this).apply {
+            setImageResource(R.drawable.ic_can)
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(GREEN) }
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+        }, LinearLayout.LayoutParams(dp(52), dp(52)).apply { marginEnd = dp(14) })
+        val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        titles.addView(text("DåseØl", 28f, TEXT, bold = true))
+        titles.addView(text("Kold, billig og lige rundt om hjørnet", 14f, MUTED))
+        header.addView(titles)
+        col.addView(header)
 
-        // Det bedste tilbud – samme indhold som widgetten.
-        val hero = card()
-        heroLabel = text("", 11f, MUTED).apply { letterSpacing = 0.08f }
-        heroPrice = text("", 40f, COPPER, bold = true)
-        heroTitle = text("", 17f, TEXT, bold = true)
-        heroSub = text("", 13f, MUTED).apply { setPadding(0, dp(2), 0, 0) }
-        heroFooter = text("", 12f, MUTED).apply { setPadding(0, dp(6), 0, 0) }
-        heroLinkText = text("Se tilbuddet ›", 14f, COPPER, bold = true).apply { setPadding(0, dp(10), 0, 0) }
-        listOf(heroLabel, heroPrice, heroTitle, heroSub, heroFooter, heroLinkText).forEach(hero::addView)
+        // Det bedste tilbud – samme indhold som widgetten – på en grøn flaske-gradient med bobler.
+        val hero = FrameLayout(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, HERO).apply { cornerRadius = dp(26).toFloat() }
+            clipToOutline = true
+        }
+        listOf(Triple(70, 14, 18), Triple(38, 26, 64), Triple(22, 62, 30), Triple(14, 88, 84)).forEach { (size, right, top) ->
+            hero.addView(View(this).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x1FFFFFFF) }
+            }, FrameLayout.LayoutParams(dp(size), dp(size), Gravity.END or Gravity.TOP).apply { marginEnd = dp(right); topMargin = dp(top) })
+        }
+        val heroBody = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(18), dp(20), dp(20))
+        }
+        heroLabel = text("", 11f, 0xCCF4F1E6.toInt(), bold = true).apply { letterSpacing = 0.1f }
+        heroPrice = text("", 44f, GOLD, bold = true).apply { setShadowLayer(dp(6).toFloat(), 0f, dp(2).toFloat(), 0x55000000) }
+        heroOther = text("", 13f, 0xCCF4F1E6.toInt()).apply { setPadding(0, 0, 0, dp(10)) }
+        heroTitle = text("", 18f, TEXT, bold = true)
+        heroSub = text("", 13f, 0xDDF4F1E6.toInt()).apply { setPadding(0, dp(3), 0, 0) }
+        heroFooter = text("", 12f, 0xAAF4F1E6.toInt()).apply { setPadding(0, dp(6), 0, 0) }
+        heroLinkText = text("Se tilbuddet  ›", 14f, 0xFF0D3D23.toInt(), bold = true).apply {
+            background = rounded(TEXT, 20)
+            setPadding(dp(16), dp(9), dp(16), dp(9))
+        }
+        listOf(heroLabel, heroPrice, heroOther, heroTitle, heroSub, heroFooter).forEach(heroBody::addView)
+        heroBody.addView(heroLinkText, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(14) })
+        hero.addView(heroBody)
         hero.setOnClickListener { heroLink?.let(::openLink) }
         col.addView(hero)
+
+        col.addView(section("Sammenlign på"))
+        priceRow = row()
+        priceRow.addView(chip("Literpris") { prefs.perCan = false; render() }, weighted())
+        priceRow.addView(chip("Pris pr. dåse") { prefs.perCan = true; render() }, weighted())
+        col.addView(priceRow)
 
         col.addView(section("Afstand"))
         val radiusCard = card()
@@ -246,6 +292,9 @@ class MainActivity : Activity() {
         radiusCard.addView(SeekBar(this).apply {
             max = 49
             progress = prefs.radiusKm - 1
+            progressTintList = ColorStateList.valueOf(GREEN_LIGHT)
+            thumbTintList = ColorStateList.valueOf(GOLD)
+            progressBackgroundTintList = ColorStateList.valueOf(TILE)
             setPadding(dp(4), dp(10), dp(4), dp(4))
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, p: Int, user: Boolean) {
@@ -320,7 +369,7 @@ class MainActivity : Activity() {
         refreshButton = button("Opdater nu") { refresh() }
         col.addView(refreshButton, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(18) })
         col.addView(text(
-            "Kun rammer med 18 eller 24 dåser á 33 cl tæller, og det billigste vælges ud fra literprisen. " +
+            "Kun rammer med 18 eller 24 dåser á 33 cl tæller, og det billigste vælges ud fra literprisen eller prisen pr. dåse. " +
                 "\"Sort ikke angivet\" betyder, at tilbuddet kun nævner mærket. Priser er uden pant. Data: eTilbudsavis.",
             12f, MUTED,
         ).apply { setPadding(dp(4), dp(14), dp(4), 0) })
@@ -328,14 +377,25 @@ class MainActivity : Activity() {
         return ScrollView(this).apply { addView(col) }
     }
 
-    private fun listRow(rank: Int, d: Deal): View {
-        val c = card(topMargin = 8)
+    private fun listRow(rank: Int, d: Deal, perCan: Boolean): View {
+        val c = card(topMargin = 8).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(14), dp(16), dp(14))
+        }
+        // Nummer i en lille guldbrikke, som et kapsel-mærke.
+        c.addView(text("$rank", 14f, 0xFF0D3D23.toInt(), bold = true).apply {
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(GOLD) }
+        }, LinearLayout.LayoutParams(dp(30), dp(30)).apply { marginEnd = dp(12) })
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val top = row().apply { gravity = Gravity.CENTER_VERTICAL }
-        top.addView(text("$rank. ${d.dealer}", 15f, TEXT, bold = true), LinearLayout.LayoutParams(0, WRAP, 1f))
-        top.addView(text(Format.perLiter(d), 16f, COPPER, bold = true))
-        c.addView(top)
-        c.addView(text(d.beerText, 14f, TEXT).apply { setPadding(0, dp(2), 0, 0) })
-        c.addView(text("${Format.pack(d)} · ${Format.period(d)}", 12f, MUTED))
+        top.addView(text(d.dealer, 15f, TEXT, bold = true), LinearLayout.LayoutParams(0, WRAP, 1f))
+        top.addView(text(Format.main(d, perCan), 16f, GOLD, bold = true))
+        body.addView(top)
+        body.addView(text(d.beerText, 14f, TEXT).apply { setPadding(0, dp(2), 0, 0) })
+        body.addView(text("${Format.pack(d)} · ${Format.other(d, perCan)} · ${Format.period(d)}", 12f, MUTED))
+        c.addView(body, LinearLayout.LayoutParams(0, WRAP, 1f))
         c.setOnClickListener { openLink(d.link) }
         return c
     }
@@ -348,7 +408,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun section(title: String) = text(title.uppercase(), 12f, MUTED).apply {
+    private fun section(title: String) = text(title.uppercase(), 12f, GREEN_LIGHT, bold = true).apply {
         letterSpacing = 0.1f
         setPadding(dp(4), dp(22), 0, dp(8))
     }
@@ -372,14 +432,14 @@ class MainActivity : Activity() {
     }
 
     private fun styleChip(v: TextView, on: Boolean) {
-        v.background = rounded(if (on) PILL_ON else TILE, 14).apply { if (on) setStroke(dp(1), COPPER) }
-        v.setTextColor(if (on) PILL_ON_TEXT else TEXT)
+        v.background = rounded(if (on) PILL_ON else TILE, 14).apply { if (on) setStroke(dp(1), GREEN_LIGHT) }
+        v.setTextColor(if (on) 0xFFFFFFFF.toInt() else MUTED)
         v.typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
     }
 
-    private fun button(label: String, onClick: () -> Unit) = text(label, 15f, 0xFF111113.toInt(), bold = true).apply {
+    private fun button(label: String, onClick: () -> Unit) = text(label, 15f, 0xFFFFFFFF.toInt(), bold = true).apply {
         gravity = Gravity.CENTER
-        background = rounded(COPPER, 14)
+        background = rounded(GREEN, 14)
         setPadding(dp(18), dp(13), dp(18), dp(13))
         setOnClickListener { onClick() }
     }

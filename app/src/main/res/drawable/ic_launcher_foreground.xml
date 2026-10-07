@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Øldåsen i midten af det adaptive ikon (inden for den sikre zone). -->
+<!-- Dåsen i midten af det adaptive ikon (inden for den sikre zone). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FF111113"
-        android:pathData="M44,32h20l3,4v40l-3,4h-20l-3,-4v-40z" />
-    <path android:fillColor="#FFD08A4E"
-        android:pathData="M45,50h18v10h-18z" />
-    <path android:fillColor="#FF111113"
-        android:pathData="M46,28h16v3h-16z" />
+    <group android:scaleX="2" android:scaleY="2" android:translateX="30" android:translateY="30">
+        <path android:fillColor="#FFF5C64B" android:pathData="M8.5,2.5h7l0.5,1.5h-8z" />
+        <path android:fillColor="#FFF4F1E6" android:pathData="M8,4h8l1,1.5v13l-1,1.5h-8l-1,-1.5v-13z" />
+        <path android:fillColor="#FF0D3D23" android:pathData="M7,8.5h10v7h-10z" />
+        <path android:fillColor="#FFF5C64B" android:pathData="M7,11.4h10v1.2h-10z" />
+        <path android:fillColor="#FFC9C3B0" android:pathData="M8,20h8l-0.5,1.5h-7z" />
+    </group>
 </vector>

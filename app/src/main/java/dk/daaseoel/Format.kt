@@ -9,6 +9,11 @@ object Format {
     private val DK = Locale("da", "DK")
 
     fun perLiter(d: Deal): String = String.format(DK, "%.2f kr/l", d.perLiter)
+    fun perCan(d: Deal): String = String.format(DK, "%.2f kr/dåse", d.perCan)
+
+    /** Den valgte pris (stor) og den anden som ekstra info. */
+    fun main(d: Deal, perCan: Boolean) = if (perCan) perCan(d) else perLiter(d)
+    fun other(d: Deal, perCan: Boolean) = if (perCan) perLiter(d) else perCan(d)
 
     fun cl(v: Double) = if (v == Math.floor(v)) "${v.toInt()} cl" else String.format(DK, "%.1f cl", v)
 
