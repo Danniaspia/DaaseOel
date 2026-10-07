@@ -7,17 +7,14 @@ import org.json.JSONArray
 class Prefs(ctx: Context) {
     private val sp = ctx.getSharedPreferences("daaseoel", Context.MODE_PRIVATE)
 
-    var mode: Mode
-        get() = runCatching { Mode.valueOf(sp.getString("mode", null)!!) }.getOrDefault(Mode.R18)
-        set(v) = sp.edit().putString("mode", v.name).apply()
-
     var radiusKm: Int
         get() = sp.getInt("radius", 10)
         set(v) = sp.edit().putInt("radius", v).apply()
 
-    var brands: Set<String>
-        get() = sp.getStringSet("brands", null)?.toSet() ?: OfferParser.DEFAULT_BRANDS
-        set(v) = sp.edit().putStringSet("brands", v).apply()
+    /** De konkrete øl, der tæller (navne fra [Beers.ALL]). */
+    var beers: Set<String>
+        get() = sp.getStringSet("beers", null)?.toSet() ?: Beers.DEFAULT
+        set(v) = sp.edit().putStringSet("beers", v).apply()
 
     /** true = brug telefonens position, false = fast adresse. */
     var useGps: Boolean
@@ -66,7 +63,9 @@ class Prefs(ctx: Context) {
         get() = System.currentTimeMillis() - sp.getLong("refreshing", 0) < 90_000
         set(v) = sp.edit().putLong("refreshing", if (v) System.currentTimeMillis() else 0).commit().let { }
 
-    /** Aktuelle tilbud (ikke udløbne), sorteret efter den valgte visning. */
-    fun ranked(now: Long = System.currentTimeMillis()): List<Ranked> =
-        Ranking.rank(deals.filter { it.runTill == 0L || it.runTill > now }.filter { it.brands.any { b -> b in brands } }, mode)
+    /** Aktuelle rammer med de valgte øl, billigste literpris først. */
+    fun ranked(now: Long = System.currentTimeMillis()): List<Deal> {
+        val selected = beers
+        return Ranking.rank(deals.filter { it.runTill == 0L || it.runTill > now }.mapNotNull { it.forSelection(selected) })
+    }
 }

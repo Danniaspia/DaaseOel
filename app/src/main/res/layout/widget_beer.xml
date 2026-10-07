@@ -42,7 +42,7 @@
         android:layout_height="wrap_content"
         android:maxLines="1"
         android:textColor="@color/copper"
-        android:textSize="34sp"
+        android:textSize="30sp"
         android:textStyle="bold" />
 
     <TextView
@@ -50,7 +50,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ellipsize="end"
-        android:maxLines="1"
+        android:maxLines="2"
         android:textColor="@color/text"
         android:textSize="15sp"
         android:textStyle="bold" />
@@ -60,7 +60,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ellipsize="end"
-        android:maxLines="2"
+        android:maxLines="1"
         android:textColor="@color/muted"
         android:textSize="12sp" />
 

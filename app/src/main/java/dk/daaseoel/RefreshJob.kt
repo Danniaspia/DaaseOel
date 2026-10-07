@@ -53,11 +53,11 @@ class RefreshJob : JobService() {
                     p.error = if (p.useGps) "Åbn appen for at finde din position" else "Vælg en adresse i appen"
                     return
                 }
-                val brands = p.brands
                 val now = System.currentTimeMillis()
                 val soon = now + 36 * 60 * 60 * 1000L
-                val deals = TjekApi.fetchBeerOffers(lat, lng, p.radiusKm * 1000, brands)
-                    .flatMap { OfferParser.parse(it, brands) }
+                // Alle øl gemmes; valget af øl filtrerer bagefter, så det virker uden ny hentning.
+                val deals = TjekApi.fetchBeerOffers(lat, lng, p.radiusKm * 1000, Beers.BRANDS)
+                    .flatMap { OfferParser.parse(it) }
                     .filter { (it.runTill == 0L || it.runTill > now) && it.runFrom <= soon }
                 p.deals = deals
                 p.updatedAt = now

@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.RemoteViews
 
 /** Hjemmeskærms-widgetten: det ene billigste tilbud for den valgte visning. */
@@ -23,21 +24,19 @@ class BeerWidget : AppWidgetProvider() {
 
         private fun render(ctx: Context): RemoteViews {
             val p = Prefs(ctx)
-            val mode = p.mode
             val v = RemoteViews(ctx.packageName, R.layout.widget_beer)
             val best = p.ranked().firstOrNull()
 
-            v.setTextViewText(R.id.label, "BILLIGSTE DÅSEØL · ${mode.label.uppercase()} · ${p.radiusKm} KM")
+            v.setTextViewText(R.id.label, "BILLIGSTE DÅSEØL · ${p.radiusKm} KM")
             if (best != null) {
-                val d = best.deal
-                v.setTextViewText(R.id.price, Format.value(best, mode))
-                v.setTextViewText(R.id.title, "${d.dealer} · ${d.brands.joinToString(" / ")}")
-                v.setTextViewText(R.id.sub, Format.note(best, mode))
-                v.setTextViewText(R.id.footer, listOf(Format.period(d), footerStatus(p)).filter { it.isNotEmpty() }.joinToString(" · "))
+                v.setTextViewText(R.id.price, Format.perLiter(best))
+                v.setTextViewText(R.id.title, best.beerText)
+                v.setTextViewText(R.id.sub, "${best.dealer} · ${Format.pack(best)}")
+                v.setTextViewText(R.id.footer, listOf(Format.period(best), footerStatus(p)).filter { it.isNotEmpty() }.joinToString(" · "))
             } else {
                 v.setTextViewText(R.id.price, "–")
                 v.setTextViewText(R.id.title, if (p.updatedAt == 0L) "Ingen data endnu" else "Ingen tilbud lige nu")
-                v.setTextViewText(R.id.sub, p.error ?: if (p.updatedAt == 0L) "Tryk for at åbne appen" else "Prøv større afstand eller flere mærker")
+                v.setTextViewText(R.id.sub, p.error ?: if (p.updatedAt == 0L) "Tryk for at åbne appen" else "Prøv større afstand eller flere øl")
                 v.setTextViewText(R.id.footer, footerStatus(p))
             }
 
@@ -49,7 +48,15 @@ class BeerWidget : AppWidgetProvider() {
                 ctx, 1, Intent(ctx, BeerWidget::class.java).setAction(ACTION_REFRESH),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-            v.setOnClickPendingIntent(R.id.root, open)
+            // Tryk på tilbuddet åbner det i eTilbudsavis; tryk på overskriften åbner appen.
+            val offer = best?.let {
+                PendingIntent.getActivity(
+                    ctx, 2, Intent(Intent.ACTION_VIEW, Uri.parse(it.link)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+            }
+            v.setOnClickPendingIntent(R.id.root, offer ?: open)
+            v.setOnClickPendingIntent(R.id.label, open)
             v.setOnClickPendingIntent(R.id.refresh, refresh)
             return v
         }

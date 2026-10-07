@@ -2,10 +2,12 @@ package dk.daaseoel
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.location.Location
+import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -17,6 +19,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import java.lang.ref.WeakReference
 
 class MainActivity : Activity() {
@@ -51,13 +54,14 @@ class MainActivity : Activity() {
     private lateinit var heroTitle: TextView
     private lateinit var heroSub: TextView
     private lateinit var heroFooter: TextView
-    private lateinit var modeRow: LinearLayout
+    private lateinit var heroLinkText: TextView
+    private var heroLink: String? = null
     private lateinit var radiusText: TextView
     private lateinit var locRow: LinearLayout
     private lateinit var locStatus: TextView
     private lateinit var addressRow: LinearLayout
     private lateinit var addressInput: EditText
-    private lateinit var brandGrid: LinearLayout
+    private lateinit var beerGrid: LinearLayout
     private lateinit var list: LinearLayout
     private lateinit var refreshButton: TextView
 
@@ -156,22 +160,23 @@ class MainActivity : Activity() {
 
     fun render() {
         if (!::heroPrice.isInitialized) return
-        val mode = prefs.mode
         val ranked = prefs.ranked()
         val best = ranked.firstOrNull()
 
-        heroLabel.text = "BILLIGSTE DÅSEØL · ${mode.label.uppercase()} · ${prefs.radiusKm} KM"
+        heroLabel.text = "BILLIGSTE RAMME DÅSEØL · ${prefs.radiusKm} KM"
+        heroLink = best?.link
         if (best != null) {
-            heroPrice.text = Format.value(best, mode)
-            heroTitle.text = "${best.deal.dealer} · ${best.deal.brands.joinToString(" / ")}"
-            heroSub.text = "${Format.note(best, mode)}\n${best.deal.heading}"
+            heroPrice.text = Format.perLiter(best)
+            heroTitle.text = best.beerText
+            heroSub.text = "${best.dealer} · ${Format.pack(best)}"
         } else {
             heroPrice.text = "–"
             heroTitle.text = if (prefs.updatedAt == 0L) "Ingen data endnu" else "Ingen tilbud fundet"
-            heroSub.text = prefs.error ?: if (prefs.updatedAt == 0L) "Vælg position nedenfor" else "Prøv en større afstand eller flere mærker"
+            heroSub.text = prefs.error ?: if (prefs.updatedAt == 0L) "Vælg position nedenfor" else "Prøv en større afstand eller flere øl"
         }
+        heroLinkText.visibility = if (best != null) View.VISIBLE else View.GONE
         heroFooter.text = listOfNotNull(
-            best?.let { Format.period(it.deal) }?.takeIf { it.isNotEmpty() },
+            best?.let { Format.period(it) }?.takeIf { it.isNotEmpty() },
             when {
                 prefs.refreshing -> "Opdaterer…"
                 prefs.error != null && prefs.updatedAt > 0 -> prefs.error
@@ -180,7 +185,6 @@ class MainActivity : Activity() {
             },
         ).joinToString(" · ")
 
-        for (i in 0 until modeRow.childCount) styleChip(modeRow.getChildAt(i) as TextView, Mode.entries[i] == mode)
         radiusText.text = "${prefs.radiusKm} km"
 
         styleChip(locRow.getChildAt(0) as TextView, prefs.useGps)
@@ -194,18 +198,18 @@ class MainActivity : Activity() {
             else -> "Skriv et postnummer eller en adresse"
         }
 
-        val selected = prefs.brands
+        val selected = prefs.beers
         var k = 0
-        for (r in 0 until brandGrid.childCount) {
-            val row = brandGrid.getChildAt(r) as LinearLayout
+        for (r in 0 until beerGrid.childCount) {
+            val row = beerGrid.getChildAt(r) as LinearLayout
             for (c in 0 until row.childCount) {
-                val chip = row.getChildAt(c) as TextView
-                styleChip(chip, OfferParser.BRANDS[k++] in selected)
+                val chip = row.getChildAt(c) as? TextView ?: continue
+                styleChip(chip, Beers.ALL[k++].name in selected)
             }
         }
 
         list.removeAllViews()
-        ranked.drop(1).take(9).forEachIndexed { i, r -> list.addView(listRow(i + 2, r, mode)) }
+        ranked.drop(1).take(9).forEachIndexed { i, d -> list.addView(listRow(i + 2, d)) }
         if (ranked.size <= 1) list.addView(text(if (ranked.isEmpty()) "" else "Ingen andre tilbud.", 13f, MUTED))
 
         refreshButton.text = if (prefs.refreshing) "Opdaterer…" else "Opdater nu"
@@ -230,15 +234,10 @@ class MainActivity : Activity() {
         heroTitle = text("", 17f, TEXT, bold = true)
         heroSub = text("", 13f, MUTED).apply { setPadding(0, dp(2), 0, 0) }
         heroFooter = text("", 12f, MUTED).apply { setPadding(0, dp(6), 0, 0) }
-        listOf(heroLabel, heroPrice, heroTitle, heroSub, heroFooter).forEach(hero::addView)
+        heroLinkText = text("Se tilbuddet ›", 14f, COPPER, bold = true).apply { setPadding(0, dp(10), 0, 0) }
+        listOf(heroLabel, heroPrice, heroTitle, heroSub, heroFooter, heroLinkText).forEach(hero::addView)
+        hero.setOnClickListener { heroLink?.let(::openLink) }
         col.addView(hero)
-
-        col.addView(section("Visning"))
-        modeRow = row()
-        Mode.entries.forEach { m ->
-            modeRow.addView(chip(m.label) { prefs.mode = m; render() }, weighted())
-        }
-        col.addView(modeRow)
 
         col.addView(section("Afstand"))
         val radiusCard = card()
@@ -295,25 +294,24 @@ class MainActivity : Activity() {
         addressRow.addView(button("Søg") { searchAddress() }, LinearLayout.LayoutParams(WRAP, WRAP).apply { marginStart = dp(8) })
         col.addView(addressRow)
 
-        col.addView(section("Mærker"))
-        brandGrid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        OfferParser.BRANDS.chunked(3).forEach { names ->
+        col.addView(section("Øl der tæller"))
+        beerGrid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        Beers.ALL.chunked(2).forEach { pair ->
             val r = row().apply { setPadding(0, 0, 0, dp(8)) }
-            names.forEach { name ->
-                r.addView(chip(name) {
-                    val s = prefs.brands.toMutableSet()
-                    if (!s.remove(name)) s.add(name)
+            pair.forEach { beer ->
+                r.addView(chip(beer.name) {
+                    val s = prefs.beers.toMutableSet()
+                    if (!s.remove(beer.name)) s.add(beer.name)
                     if (s.isNotEmpty()) {
-                        prefs.brands = s
+                        prefs.beers = s
                         render()
-                        refresh()
                     }
                 }, weighted())
             }
-            repeat(3 - names.size) { r.addView(View(this), weighted()) }
-            brandGrid.addView(r)
+            if (pair.size == 1) r.addView(View(this), weighted())
+            beerGrid.addView(r)
         }
-        col.addView(brandGrid)
+        col.addView(beerGrid)
 
         col.addView(section("Flere tilbud"))
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -322,23 +320,32 @@ class MainActivity : Activity() {
         refreshButton = button("Opdater nu") { refresh() }
         col.addView(refreshButton, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(18) })
         col.addView(text(
-            "Priser er uden pant. \"Omregnet\" betyder at prisen er regnet om til 18 eller 24 dåser ud fra tilbuddets egen pakning. " +
-                "Rammevisning tæller kun 25–33 cl dåser; literpris tæller op til 50 cl. Data: eTilbudsavis.",
+            "Kun rammer med 18 eller 24 dåser á 33 cl tæller, og det billigste vælges ud fra literprisen. " +
+                "\"Sort ikke angivet\" betyder, at tilbuddet kun nævner mærket. Priser er uden pant. Data: eTilbudsavis.",
             12f, MUTED,
         ).apply { setPadding(dp(4), dp(14), dp(4), 0) })
 
         return ScrollView(this).apply { addView(col) }
     }
 
-    private fun listRow(rank: Int, r: Ranked, mode: Mode): View {
+    private fun listRow(rank: Int, d: Deal): View {
         val c = card(topMargin = 8)
         val top = row().apply { gravity = Gravity.CENTER_VERTICAL }
-        top.addView(text("$rank. ${r.deal.dealer}", 15f, TEXT, bold = true), LinearLayout.LayoutParams(0, WRAP, 1f))
-        top.addView(text(Format.value(r, mode), 16f, COPPER, bold = true))
+        top.addView(text("$rank. ${d.dealer}", 15f, TEXT, bold = true), LinearLayout.LayoutParams(0, WRAP, 1f))
+        top.addView(text(Format.perLiter(d), 16f, COPPER, bold = true))
         c.addView(top)
-        c.addView(text("${r.deal.brands.joinToString(" / ")} · ${Format.note(r, mode)}", 13f, MUTED))
-        c.addView(text(Format.period(r.deal), 12f, MUTED))
+        c.addView(text(d.beerText, 14f, TEXT).apply { setPadding(0, dp(2), 0, 0) })
+        c.addView(text("${Format.pack(d)} · ${Format.period(d)}", 12f, MUTED))
+        c.setOnClickListener { openLink(d.link) }
         return c
+    }
+
+    private fun openLink(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Kunne ikke åbne linket", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun section(title: String) = text(title.uppercase(), 12f, MUTED).apply {

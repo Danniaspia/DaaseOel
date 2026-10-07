@@ -14,7 +14,7 @@ import java.util.Locale
 object TjekApi {
     private const val BASE = "https://squid-api.tjek.com/v2/offers/search"
 
-    /** Henter alle aktuelle øltilbud inden for radius og fjerner dubletter. */
+    /** Henter alle aktuelle øltilbud inden for radius (søgning på "øl" og hvert mærke) og fjerner dubletter. */
     fun fetchBeerOffers(lat: Double, lng: Double, radiusM: Int, brands: Collection<String>): List<JSONObject> {
         val queries = listOf("øl", "dåseøl", "pilsner") + brands.map { it.lowercase(Locale("da", "DK")) }
         val byId = LinkedHashMap<String, JSONObject>()

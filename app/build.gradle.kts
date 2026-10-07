@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
@@ -11,8 +11,8 @@ android {
         applicationId = "dk.daaseoel"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     compileOptions {
@@ -26,6 +26,6 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
-    // Rigtig org.json i stedet for Androids tomme stubs, så parseren kan testes på JVM'en.
+    // Rigtig org.json i stedet for Androids tomme stubs, sÃ¥ parseren kan testes pÃ¥ JVM'en.
     testImplementation("org.json:json:20240303")
 }
