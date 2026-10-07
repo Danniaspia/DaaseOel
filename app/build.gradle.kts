@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
@@ -26,6 +26,6 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
-    // Rigtig org.json i stedet for Androids tomme stubs, sÃ¥ parseren kan testes pÃ¥ JVM'en.
+    // Rigtig org.json i stedet for Androids tomme stubs, så parseren kan testes på JVM'en.
     testImplementation("org.json:json:20240303")
 }
